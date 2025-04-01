@@ -1,4 +1,4 @@
-![Numida](../logo.numida.png)
+![Numida](./logo.numida.png)
 
 # What are we looking for in an engineer?
 
