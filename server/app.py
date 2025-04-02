@@ -69,7 +69,7 @@ type_defs = gql("""
         loans(filters: LoanFilter,isCombined:Boolean!): [Loan!]!
         loanPayments(filters: LoanPaymentFilter): [LoanPayment!]!
     }
-    
+
     type Mutation {
         updateLoan(loan_id: Int!): Loan!
         deleteLoan(loan_id: Int!): Boolean!

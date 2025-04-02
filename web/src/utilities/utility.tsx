@@ -18,7 +18,9 @@ export const getMonthsUntilDue = (dueDate: string): number => {
   const due = new Date(dueDate);
 
   const yearsDiff = due.getFullYear() - today.getFullYear();
-  const monthsDiff = due.getMonth() - today.getMonth();
+
+  const monthsDiff = (due.getMonth()+1) - (today.getMonth()+1);
+
   let totalMonths = yearsDiff * 12 + monthsDiff;
 
   return totalMonths < 0 ? 0 : totalMonths;

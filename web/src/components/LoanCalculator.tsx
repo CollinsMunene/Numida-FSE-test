@@ -26,7 +26,7 @@ export const LoanCalculator: React.FC<LoanCalculatorProps> = ({
   return (
     <div>
       {/* If no interest then ideally the due date is past */}
-      {interest > 0 ? <h3>Loan Interest: {interest} </h3> : "Due date passed"}
+      {interest > 0 ? <h3>Loan Interest: {interest} </h3> : null}
     </div>
   );
 };
