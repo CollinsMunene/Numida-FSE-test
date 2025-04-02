@@ -1,6 +1,7 @@
 from datetime import datetime, date
+import time
 from flask import Flask, request,jsonify
-# Usage of Ariadne asit's compatible with latest version of graphql-core(3.2.5)
+# Usage of Ariadne as it's compatible with latest version of graphql-core(3.2.5)
 from ariadne import graphql_sync, make_executable_schema, ObjectType, gql, ScalarType 
 from ariadne.explorer import ExplorerGraphiQL
 from flask_cors import CORS
@@ -29,15 +30,15 @@ def parse_date_value(value):
 def parse_date_literal(ast):
     return datetime.strptime(ast.value, "%Y-%m-%d").date()  # Converts AST (Abstract Syntax Tree) → Python date, used when date is on params in mutations
 
-
 type_defs = gql("""
     scalar Date 
-    
+           
     type LoanPayment {
         id: Int!
         loan_id: Int!
         loan: Loan
         payment_date: Date! 
+        amount: Float!
         status: String!    
     }
     
@@ -52,13 +53,26 @@ type_defs = gql("""
         status: String
     }
     
+    input LoanFilter {
+        id:Int
+        name: String
+        due_date: Date
+    }
+                
+    input LoanPaymentFilter{
+        id:Int
+        status: String
+        loan_id: Int
+    }
+    
     type Query {
-        loans(isCombined:Boolean!): [Loan!]!
-        loanPayments: [LoanPayment!]!
+        loans(filters: LoanFilter,isCombined:Boolean!): [Loan!]!
+        loanPayments(filters: LoanPaymentFilter): [LoanPayment!]!
     }
     
     type Mutation {
-        addLoanPayment(loan_id: Int!): LoanPayment!
+        updateLoan(loan_id: Int!): Loan!
+        deleteLoan(loan_id: Int!): Boolean!
     }
     
 """)
@@ -68,90 +82,119 @@ query = ObjectType("Query")
 mutation = ObjectType("Mutation")
 
 @query.field("loans")
-def resolve_loans(*_,isCombined=False):
+def resolve_loans(*_,filters=None,isCombined=False):
     try:
-        # Resolving 'payments' field of Loan
+        time.sleep(1)
         data = read_data()
+        loans = data.get("loans", [])
+
+        if filters:
+            if filters.get("id"):
+                loans = [loan for loan in loans if loan["id"] == filters["id"]]
+           
+            if filters.get("name"):
+                loans = [loan for loan in loans if filters["name"].lower() in loan["name"].lower()]
+
+            if filters.get("due_date"):
+                loans = [loan for loan in loans if loan["due_date"] == filters["due_date"]]
+
+        # Check if the results needed should be combined
         if isCombined:
-             # Iterate through the loans
-            for loan in data.get("loans", []):
-                # Find the latest payment for the loan (assuming one payment for simplicity)
+            for loan in loans:
+                # Find the latest payment for the loan
                 payment = next((payment for payment in data.get("loan_payments", []) if payment["loan_id"] == loan["id"]), None)
 
                 if payment:
                     # Add the payment details into the loan object
                     loan["payment_date"] = payment["payment_date"]
-                    loan["status"] = payment['status']  # The calculated status
+                    loan["status"] = payment['status']
                 else:
                     # If no payment found, set status to 'Unpaid'
                     loan["payment_date"] = None
                     loan["status"] = "Unpaid"
 
-            return data["loans"]
-
+            return loans
         else:
-            for loan in data.get("loans", []):  # Using `.get()` to avoid KeyError
+            # Else return the whole loan object
+            for loan in loans:
                 loan["payments"] = [payment for payment in data.get("loan_payments", []) if payment["loan_id"] == loan["id"]]
-            return data["loans"]
+            return loans
     except Exception as e:
         print(f"Error in resolve_loans: {e}")
-        raise Exception("Failed to retrieve loans")  # Generic error message for GraphQL response
-
+        raise Exception("Failed to retrieve loans")
 
 @query.field("loanPayments")
-def resolve_loanPayments(*_):
+def resolve_loanPayments(*_, filters=None):
     try:
-        # Resolving 'loan_id' to return the full Loan object
+        time.sleep(1)
         data = read_data()
-        for payment in data.get("loan_payments", []):
+        loan_payments = data.get("loan_payments", [])
+
+        if filters:
+            if filters.get("id"):
+                loan_payments = [loan_payment for loan_payment in loan_payments if loan_payment["id"] == filters["id"]]
+            
+            if filters.get("status"):
+                loan_payments = [loan_payment for loan_payment in loan_payments if loan_payment["status"] == filters["status"]]
+            
+            if filters.get("loan_id"):
+                loan_payments = [loan_payment for loan_payment in loan_payments if loan_payment["loan_id"] == filters["loan_id"]]
+
+        for payment in loan_payments:
             payment["loan"] = next((loan for loan in data.get("loans", []) if loan["id"] == payment["loan_id"]), None)
-        return data["loan_payments"]
+
+        return loan_payments
 
     except Exception as e:
         print(f"Error in resolve_loanPayments: {e}")
         raise Exception("Failed to retrieve loan payments")
 
 
-@mutation.field("addLoanPayment")
-def resolve_add_loan_payment(_, info, loan_id):  
+@mutation.field("updateLoan")
+def resolve_update_loan(_, info, loan_id):  
     try:
         data = read_data()
         loan = next((loan for loan in data.get("loans", []) if loan["id"] == loan_id), None)
 
         if not loan:
-            raise Exception("Loan not found")  # Handle missing loan case
+            raise Exception("Loan not found")
 
-        # Extract the due date from the loan data
-        try:
-            due_date = datetime.strptime(loan["due_date"], "%Y-%m-%d").date()
-        except ValueError as e:
-            print(f"Error parsing due_date: {e}")
-            raise Exception("Invalid due date format")
+        if loan["status"] in ["Draft","Submitted"]: 
+            if request.json.get("due_date"):
+                try:
+                    due_date = datetime.strptime(request.json["due_date"], "%Y-%m-%d").date()
+                    loan["due_date"] = due_date
+                except ValueError as e:
+                    print(f"Error parsing due_date: {e}")
+                    raise Exception("Invalid due date format")
 
-        # Get today's date as the payment date
-        payment_date = date.today()
+            if request.json.get("name"):
+                loan["name"] = request.json["name"]
 
-        # Compute the payment status
-        payment_status = calculate_payment_status(payment_date, due_date)
+            write_data(data)
+            return loan
+        else:
+            raise Exception("Loan cannot be updated")
+    except Exception as e:
+        print(f"Error in updateLoan: {e}")
+        raise Exception("Failed to update loan payment")
 
-        # Increment ID safely
-        new_id = max((payment["id"] for payment in data.get("loan_payments", [])), default=0) + 1
+@mutation.field("deleteLoan")
+def resolve_delete_loan(_, info, loan_id):  
+    try:
+        data = read_data()
+        loan = next((loan for loan in data.get("loans", []) if loan["id"] == loan_id), None)
 
-        # Create the new payment entry
-        new_payment = {
-            "id": new_id,
-            "loan_id": loan_id,
-            "payment_date": payment_date.isoformat(),
-            "status": payment_status
-        }
+        if not loan:
+            raise Exception("Loan not found")
 
-        # Add the new payment to the loan_payments list
-        data.setdefault("loan_payments", []).append(new_payment)
+        if loan["status"] in ["Draft","Submitted"]: 
+            data.setdefault("loan_payments", []).remove(loan)
 
-        # Write the updated data back to the JSON file
-        write_data(data)
-
-        return new_payment
+            write_data(data)
+            return loan
+        else:
+            raise Exception("Loan cannot be deleted")
     except Exception as e:
         print(f"Error in addLoanPayment: {e}")
         raise Exception("Failed to add loan payment")
@@ -159,7 +202,9 @@ def resolve_add_loan_payment(_, info, loan_id):
 # Same executable schema
 schema = make_executable_schema(type_defs, [query,mutation, date_scalar])
 
-explorer_html = ExplorerGraphiQL().html(None)
+explorer_html = ExplorerGraphiQL(
+    title="Collins Numida Playground"
+).html(None)
 
 # Return Playground on GET
 @app.route("/graphql", methods=["GET"])
@@ -180,7 +225,6 @@ def graphql_server():
     status_code = 200 if success else 400
     return jsonify(result), status_code
 
-
 @app.route("/")
 def home():
     return "Welcome to the Loan Application API"
@@ -188,25 +232,28 @@ def home():
 @app.route("/make_payment",methods=["POST"])
 def AddLoanPayment():
     try:
-        payment_data = request.json  # Assuming the data is sent in JSON format
+        time.sleep(3)
+        payment_data = request.json
 
         data = read_data()
         loan = next((loan for loan in data.get("loans", []) if loan["id"] == payment_data.get("loan_id")), None)
 
         if not loan:
-            raise Exception("Loan not found")  # Handle missing loan case
+            raise Exception("Loan not found")
 
-        # Extract the due date from the loan data
+        if not payment_data.get("amount") or payment_data.get("amount") <= 0:
+            raise Exception("Amount not sufficient to deposit")
+
         try:
             due_date = datetime.strptime(loan["due_date"], "%Y-%m-%d").date()
         except ValueError as e:
             print(f"Error parsing due_date: {e}")
             raise Exception("Invalid due date format")
 
-        # Get today's date as the payment date
+        # Geting today's date as the payment date
         payment_date = date.today()
 
-        # Compute the payment status
+        # Let's compute the payment status
         payment_status = calculate_payment_status(payment_date, due_date)
 
         # Increment ID safely
@@ -216,16 +263,14 @@ def AddLoanPayment():
         new_payment = {
             "id": new_id,
             "loan_id": payment_data.get("loan_id"),
+            "amount":payment_data.get("amount",0),
             "payment_date": payment_date.isoformat(),
             "status": payment_status
         }
 
-        # Add the new payment to the loan_payments list
         data.setdefault("loan_payments", []).append(new_payment)
 
-        # Write the updated data back to the JSON file
         write_data(data)
-
         return new_payment
     except Exception as e:
         print(f"Error in addLoanPayment REST: {e}")

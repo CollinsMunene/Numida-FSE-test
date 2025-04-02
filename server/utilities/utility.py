@@ -1,9 +1,7 @@
 import json
-import datetime
 
 FILE_PATH = 'database/db.json'
 
-# Read data from the JSON file
 def read_data():
     try:
         with open(FILE_PATH, 'r') as file:
@@ -11,13 +9,11 @@ def read_data():
     except FileNotFoundError:
         return {"loans": [], "loan_payments": []}  # If file doesn't exist, return empty data
 
-# Write data to the JSON file
 def write_data(data):
     with open(FILE_PATH, 'w') as file:
         json.dump(data, file, indent=4)
 
 def calculate_payment_status(payment_date, due_date):
-    # Calculate the difference between the due date and payment date
     delta = (payment_date - due_date).days
     
     # Determine status based on the number of days late
