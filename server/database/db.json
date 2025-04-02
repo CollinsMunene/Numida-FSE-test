@@ -29,7 +29,7 @@
             "name": "Esther's Autoparts",
             "interest_rate": 1.5,
             "principal": 40000,
-            "due_date": "2025-03-01",
+            "due_date": "2025-03-03",
             "status": "Approved"
         },
         {
@@ -114,19 +114,5 @@
         }
     ],
     "loan_payments": [
-        {
-            "id": 1,
-            "loan_id": 6,
-            "amount": 100,
-            "payment_date": "2025-04-02",
-            "status": "On Time"
-        },
-        {
-            "id": 2,
-            "loan_id": 5,
-            "amount": 10000,
-            "payment_date": "2025-04-02",
-            "status": "On Time"
-        }
     ]
 }

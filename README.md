@@ -161,3 +161,14 @@ while(noSuccess) {
     }
 }
 ```
+
+## Screenshots
+
+### Dashboard
+![Dashboard](documentation_assets/dashboard.png)
+
+### Payment History
+![Payment History](documentation_assets/payment_history.png)
+
+### Mobile View
+![Mobile View](documentation_assets/mobile_view.png)

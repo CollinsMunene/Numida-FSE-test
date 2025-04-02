@@ -2,9 +2,10 @@ import { JSX } from "react";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import { gql, useQuery } from "@apollo/client";
-import { Chip, CircularProgress, Typography } from "@mui/material";
+import { Chip, CircularProgress, IconButton, Typography } from "@mui/material";
 import { getStatusColor } from "../utilities/utility";
 import { LoanCalculator } from "./LoanCalculator";
+import { GridCloseIcon } from "@mui/x-data-grid";
 
 const GET_LOAN_PAYMENTS_DATA = gql`
   query loanPayments($filters: LoanPaymentFilter) {
@@ -23,7 +24,6 @@ const GET_LOAN_PAYMENTS_DATA = gql`
 `;
 
 interface LoanPaymentsProps {
-  ontoggleDrawer: (open: boolean) => void;
   loanId: number;
 }
 
@@ -35,7 +35,6 @@ interface Payment {
 }
 
 export default function LoanPayments({
-  ontoggleDrawer,
   loanId,
 }: LoanPaymentsProps): JSX.Element {
   const { loading, error, data } = useQuery(GET_LOAN_PAYMENTS_DATA, {
@@ -71,11 +70,8 @@ export default function LoanPayments({
         overflow: "auto",
       }}
       role="presentation"
-      onClick={() => ontoggleDrawer(false)}
     >
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Payment History
-      </Typography>
+      <Typography variant="h6">Payment History</Typography>
 
       <Box sx={{ width: "100%" }}>
         {data?.loanPayments && data.loanPayments.length > 0 ? (

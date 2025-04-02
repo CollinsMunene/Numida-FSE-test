@@ -122,7 +122,7 @@ export default function LoanDataTable() {
       ) {
         return;
       }
-
+      
       setIsDrawerOpen(open);
     };
 
@@ -210,7 +210,7 @@ export default function LoanDataTable() {
       />
       <Drawer anchor="right" open={isDrawerOpen} onClose={toggleDrawer(false)}>
         {selectedLoan !== null ? (
-          <LoanPayments ontoggleDrawer={toggleDrawer} loanId={selectedLoan} />
+          <LoanPayments loanId={selectedLoan} />
         ) : (
           <p>Select a loan to view details</p>
         )}
